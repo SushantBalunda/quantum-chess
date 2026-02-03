@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>NEXUS CHESS — AI-Powered Chess</title>
+  <meta name="description" content="A premium, futuristic chess game with AI opponents powered by local minimax analysis." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;600;700;900&family=Rajdhani:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+
+  <!-- ═══════════════════ HEADER ═══════════════════ -->
+  <header class="app-header" role="banner">
+    <div class="header-inner">
+      <div class="logo-group">
+        <span class="logo-icon" aria-hidden="true">♟</span>
+        <h1 class="logo-title">NEXUS <span class="logo-accent">CHESS</span></h1>
+      </div>
+      <nav class="header-controls" aria-label="Game settings">
+        <button class="btn btn--icon" id="btnSound" aria-label="Toggle sound" title="Toggle Sound">
+          <span class="btn-icon-svg" aria-hidden="true">🔊</span>
+        </button>
+        <button class="btn btn--icon" id="btnFlipBoard" aria-label="Flip board perspective" title="Flip Board">
+          <span class="btn-icon-svg" aria-hidden="true">🔄</span>
+        </button>
+      </nav>
+    </div>
+  </header>
+
+  <!-- ═══════════════════ MAIN LAYOUT ═══════════════════ -->
+  <main class="app-main">
+
+    <!-- ── Setup Modal (shown on load & new-game) ── -->
+    <section class="modal-overlay" id="setupModal" role="dialog" aria-modal="true" aria-labelledby="setupTitle">
+      <div class="modal modal--setup">
+        <h2 class="modal-title" id="setupTitle">NEW GAME</h2>
+        <p class="modal-sub">Choose your battle parameters</p>
+
+        <!-- Game Mode -->
+        <fieldset class="setup-fieldset">
+          <legend class="setup-legend">Game Mode</legend>
+          <div class="radio-row">
+            <label class="radio-card">
+              <input type="radio" name="gameMode" value="pvp" checked />
+              <span class="radio-card__inner">
+                <span class="radio-card__icon" aria-hidden="true">👥</span>
+                <span class="radio-card__label">Player vs Player</span>
+              </span>
+            </label>
+            <label class="radio-card">
+              <input type="radio" name="gameMode" value="pve" />
+              <span class="radio-card__inner">
+                <span class="radio-card__icon" aria-hidden="true">🤖</span>
+                <span class="radio-card__label">Player vs AI</span>
+              </span>
+            </label>
+          </div>
+        </fieldset>
+
+        <!-- AI Difficulty (conditionally visible) -->
+        <fieldset class="setup-fieldset" id="difficultyField" class="hidden">
+          <legend class="setup-legend">AI Difficulty</legend>
+          <div class="radio-row">
+            <label class="radio-card">
+              <input type="radio" name="difficulty" value="easy" checked />
+              <span class="radio-card__inner">
+                <span class="radio-card__icon" aria-hidden="true">🟢</span>
+                <span class="radio-card__label">Easy</span>
+              </span>
+            </label>
+            <label class="radio-card">
+              <input type="radio" name="difficulty" value="medium" />
+              <span class="radio-card__inner">
+                <span class="radio-card__icon" aria-hidden="true">🟡</span>
+                <span class="radio-card__label">Medium</span>
+              </span>
+            </label>
+            <label class="radio-card">
+              <input type="radio" name="difficulty" value="hard" />
+              <span class="radio-card__inner">
+                <span class="radio-card__icon" aria-hidden="true">🔴</span>
+                <span class="radio-card__label">Hard</span>
+              </span>
+            </label>
+          </div>
+        </fieldset>
+
+        <!-- Player Color -->
+        <fieldset class="setup-fieldset" id="colorField">
+          <legend class="setup-legend">Your Color</legend>
+          <div class="radio-row">
+            <label class="radio-card">
+              <input type="radio" name="playerColor" value="white" checked />
+              <span class="radio-card__inner">
+                <span class="radio-card__icon" aria-hidden="true">⬜</span>
+                <span class="radio-card__label">White</span>
+              </span>
+            </label>
+            <label class="radio-card">
+              <input type="radio" name="playerColor" value="black" />
+              <span class="radio-card__inner">
+                <span class="radio-card__icon" aria-hidden="true">⬛</span>
+                <span class="radio-card__label">Black</span>
+              </span>
+            </label>
+          </div>
+        </fieldset>
+
+        <button class="btn btn--primary btn--start" id="btnStartGame" type="button">
+          <span aria-hidden="true">⚡</span> START GAME
+        </button>
+      </div>
+    </section>
+
+    <!-- ── Game-Over Overlay ── -->
+    <section class="modal-overlay hidden" id="gameOverModal" role="dialog" aria-modal="true" aria-labelledby="gameOverTitle">
+      <div class="modal modal--gameover">
+        <div class="gameover-icon" id="gameOverIcon" aria-hidden="true">🏆</div>
+        <h2 class="modal-title" id="gameOverTitle">CHECKMATE</h2>
+        <p class="gameover-result" id="gameOverResult">White Wins!</p>
+        <button class="btn btn--primary btn--start" id="btnPlayAgain" type="button">PLAY AGAIN</button>
+      </div>
+    </section>
+
+    <!-- ── Left Sidebar: Captured Pieces ── -->
+    <aside class="sidebar sidebar--left" aria-label="Black's captured pieces">
+      <div class="captured-section">
+        <span class="captured-label">CAPTURED</span>
+        <div class="captured-pieces" id="capturedBlack" aria-live="polite"></div>
+      </div>
+    </aside>
+
+    <!-- ── Centre: Board + Status ── -->
+    <section class="board-section" aria-label="Chess game area">
+
+      <!-- Status Bar -->
+      <div class="status-bar">
+        <div class="status-turn" id="statusTurn" aria-live="polite">
+          <span class="status-dot status-dot--white"></span>
+          <span class="status-text">White's Turn</span>
+        </div>
+        <div class="status-extras">
+          <span class="status-badge" id="statusCheck" class="hidden" aria-live="assertive">CHECK</span>
+          <span class="status-hint-counter" id="hintCounter">💡 3 hints left</span>
+        </div>
+      </div>
+
+      <!-- Chessboard -->
+      <div class="board-wrapper">
+        <!-- File labels top -->
+        <div class="board-labels board-labels--files board-labels--top" aria-hidden="true">
+          <span>a</span><span>b</span><span>c</span><span>d</span><span>e</span><span>f</span><span>g</span><span>h</span>
+        </div>
+
+        <div class="board-container">
+          <!-- Rank labels left -->
+          <div class="board-labels board-labels--ranks" aria-hidden="true">
+            <span>8</span><span>7</span><span>6</span><span>5</span><span>4</span><span>3</span><span>2</span><span>1</span>
+          </div>
+
+          <!-- 8×8 Grid — populated by JS -->
+          <div class="chessboard" id="chessboard" role="grid" aria-label="Chess board" tabindex="0"></div>
+
+          <!-- Rank labels right (mirror) -->
+          <div class="board-labels board-labels--ranks board-labels--ranks-right" aria-hidden="true">
+            <span>8</span><span>7</span><span>6</span><span>5</span><span>4</span><span>3</span><span>2</span><span>1</span>
+          </div>
+        </div>
+
+        <!-- File labels bottom -->
+        <div class="board-labels board-labels--files board-labels--bottom" aria-hidden="true">
+          <span>a</span><span>b</span><span>c</span><span>d</span><span>e</span><span>f</span><span>g</span><span>h</span>
+        </div>
+      </div>
+
+      <!-- Move History -->
+      <div class="move-history-panel">
+        <span class="move-history-label">MOVES</span>
+        <div class="move-history-scroll" id="moveHistory" aria-label="Move history" aria-live="polite"></div>
+      </div>
+    </section>
+
+    <!-- ── Right Sidebar: Controls ── -->
+    <aside class="sidebar sidebar--right" aria-label="Game controls">
+      <!-- Captured Pieces (top player) -->
+      <div class="captured-section">
+        <span class="captured-label">CAPTURED</span>
+        <div class="captured-pieces" id="capturedWhite" aria-live="polite"></div>
+      </div>
+
+      <hr class="sidebar-divider" />
+
+      <!-- Action Buttons -->
+      <div class="controls-group" role="group" aria-label="Game actions">
+        <button class="btn btn--action" id="btnUndo" aria-label="Undo last move" title="Undo">
+          <span class="btn-icon" aria-hidden="true">↩</span>
+          <span class="btn-label">UNDO</span>
+        </button>
+        <button class="btn btn--action" id="btnRedo" aria-label="Redo move" title="Redo">
+          <span class="btn-icon" aria-hidden="true">↪</span>
+          <span class="btn-label">REDO</span>
+        </button>
+        <button class="btn btn--action btn--hint" id="btnHint" aria-label="Get a hint" title="Hint">
+          <span class="btn-icon" aria-hidden="true">💡</span>
+          <span class="btn-label">HINT</span>
+        </button>
+        <button class="btn btn--action btn--warn" id="btnRestart" aria-label="Restart game" title="Restart">
+          <span class="btn-icon" aria-hidden="true">↺</span>
+          <span class="btn-label">RESTART</span>
+        </button>
+        <button class="btn btn--action btn--danger" id="btnResign" aria-label="Resign the game" title="Resign">
+          <span class="btn-icon" aria-hidden="true">🏳</span>
+          <span class="btn-label">RESIGN</span>
+        </button>
+      </div>
+
+      <!-- Hint explanation box -->
+      <div class="hint-box hidden" id="hintBox" aria-live="polite">
+        <span class="hint-box__title">💡 HINT</span>
+        <p class="hint-box__text" id="hintText"></p>
+      </div>
+
+      <!-- AI status indicator -->
+      <div class="ai-status hidden" id="aiStatus" aria-live="polite">
+        <span class="ai-status__dot"></span>
+        <span class="ai-status__text">AI is thinking…</span>
+      </div>
+    </aside>
+
+  </main>
+
+  <!-- ═══════════════════ FOOTER ═══════════════════ -->
+  <footer class="app-footer" role="contentinfo">
+    <p class="footer-text">NEXUS CHESS &nbsp;·&nbsp; AI-Powered Chess Experience &nbsp;·&nbsp; Built with ♥</p>
+  </footer>
+
+  <!-- ═══════════════════ SCRIPTS ═══════════════════ -->
+  <script src="script.js" defer></script>
+</body>
+</html>
